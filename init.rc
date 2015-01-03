@@ -1,0 +1,98 @@
+on early-init
+    start ueventd
+
+on init
+    export PATH /sbin:/system/sbin:/system/bin:/system/xbin
+    export LD_LIBRARY_PATH /sbin:/vendor/lib:/system/lib 
+    export ANDROID_ROOT /system
+    export ANDROID_DATA /data
+    export EXTERNAL_STORAGE /sdcard
+
+    symlink /system/etc /etc
+
+    mkdir /persist
+    mkdir /sdcard
+    mkdir /system
+    mkdir /data
+    mkdir /cache
+    mount /tmp /tmp tmpfs
+
+    chown root shell /tmp
+    chmod 0775 /tmp
+
+#--------------------------
+#[kh.tak@lge.com 121016] #mount system & persist partition for rooting check tool for LGE
+#--------------------------
+# system partition
+    wait /dev/block/platform/msm_sdcc.3/by-num/p14
+    chmod 0777 /sbin/
+#    exec /sbin/e2fsck_static -y /dev/block/platform/msm_sdcc.3/by-num/p14
+    mount ext4 /dev/block/platform/msm_sdcc.3/by-num/p14 /system ro barrier=1
+
+# persist partition
+    wait /dev/block/platform/msm_sdcc.3/by-num/p15
+    exec /system/bin/e2fsck -fy /dev/block/platform/msm_sdcc.3/by-num/p15
+    mount ext4 /dev/block/platform/msm_sdcc.3/by-num/p15 /persist nosuid nodev barrier=1
+
+# LGE_CHANGE_S,narasimha.chikka@lge.com	, Enable lge usb driver
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/idVendor 1004
+    write /sys/class/android_usb/android0/idProduct 61A6
+    write /sys/class/android_usb/android0/bDeviceClass 0
+    write /sys/class/android_usb/android0/bDeviceSubClass 0
+    write /sys/class/android_usb/android0/bDeviceProtocol 0
+    write /sys/class/android_usb/android0/functions mass_storage,adb
+    write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
+    write /sys/class/android_usb/android0/iProduct ${ro.product.model}
+    write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+# LGE_CHANGE_E,narasimha.chikka@lge.com	, Enable lge usb driver
+
+on boot
+
+    ifup lo
+    hostname localhost
+    domainname localdomain
+
+    class_start default
+
+	chmod 0444 /sys/devices/platform/msm_hsusb/gadget/usb_state
+
+service ueventd /sbin/ueventd
+    critical
+
+# sungrae.jo 2012.09.26 launch B&R daemon for recovery mode as root user
+service brd /sbin/brd
+
+service recovery /sbin/recovery
+
+service adbd /sbin/adbd recovery
+    disabled
+
+# Always start adbd on userdebug and eng builds
+on property:ro.debuggable=1
+    write /sys/class/android_usb/android0/enable 1
+    start adbd
+
+# sungrae.jo 2013.01.14 start adbd for user builds.
+on property:ro.debuggable=0
+    write /sys/class/android_usb/android0/enable 1
+    start adbd
+
+# Restart adbd so it can run as root
+on property:service.adb.root=1
+    write /sys/class/android_usb/android0/enable 0
+    restart adbd
+    write /sys/class/android_usb/android0/enable 1
+
+service rmt_storage /system/bin/rmt_storage
+	user root
+	disabled
+
+on property:ro.boot.emmc=true
+	start rmt_storage
+
+# soung.mungi@lge.com AT/ATS refactoring [START]
+service atd /system/bin/atd
+	socket atd stream 0660 root inet
+	user root
+	group input inet

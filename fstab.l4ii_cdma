@@ -1,0 +1,16 @@
+# Android fstab file.
+# The filesystem that contains the filesystem checker binary (typically /system) cannot
+# specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+
+#TODO: Add 'check' as fs_mgr_flags with data partition.
+# Currently we dont have e2fsck compiled. So fs check would failed.
+
+#<src>                                          <mnt_point>  <type>  <mnt_flags and options>                     <fs_mgr_flags>
+#LGE chage partition
+#/dev/block/platform/msm_sdcc.3/by-num/p12         /system      ext4    ro,barrier=1                                wait
+#/dev/block/platform/msm_sdcc.3/by-num/p13         /data        ext4    nosuid,nodev,barrier=1,noauto_da_alloc      wait
+#LGE_CHANGE_S [jyothishre.nk@lge.com] 20120926:Adding /data partition
+#LGE_CHANGE_S [jyothishre.nk@lge.com] 20121106:change data partition fs_mgr_flags wait->check
+#LGE_CHANGE [bohyun.jung@lge.com] 20121227:add noatime option to /data and /system partition
+/dev/block/platform/msm_sdcc.3/by-num/p14         /system      ext4    ro,barrier=1,noatime                                wait
+/dev/block/platform/msm_sdcc.3/by-num/p20         /data        ext4    nosuid,nodev,noatime,barrier=1,noauto_da_alloc,errors=continue      check,encryptable=/dev/block/platform/msm_sdcc.3/by-num/p24
